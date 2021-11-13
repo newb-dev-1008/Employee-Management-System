@@ -7,12 +7,27 @@ import cv2
 import os
 from datetime import datetime
 
+def returnStatus(resultString):
+    # Handle the return calls to the admin via their APIs
+    # Finish this (Mark employee attendance + other functionalities)
+    return resultString
+
+# --------------------------------------- Variables and paths for configuration ---------------------------------------
+
 # Important paths for models and datasets
-protoPathFolder = ""
-modelPathFolder = ""
-embedderPath = ""
-recognizer_savePath = ""
-labelencoder_savePath = ""
+protoPathFolder = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Models\Face Detection"
+modelPathFolder = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Models\Face Detection"
+embedderPath = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Models\Embedder\openface_nn4.small2.v1.t7"
+
+savePathRecognizer = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Recognizer\recognizer.pickle" 
+savePathLabels = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Recognizer\le.pickle"
+
+imageURL = # Image from S3 bucket (source yet to be known)
+frame = # Download the image from above URL and store it in this variable
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# --------------------------------------- Main Program ---------------------------------------
 
 # Initialize face detector
 protoPath = os.path.sep.join([protoPathFolder, 'deploy.prototxt'])
@@ -23,11 +38,9 @@ detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
 embedder = cv2.dnn.readNetFromTorch(embedderPath)
 
 # Load the SVM Model and LabelEncoder
-recognizer = pickle.loads(open(recognizer_savePath, "rb").read())
-le = pickle.loads(open(labelencoder_savePath, "rb").read())
+recognizer = pickle.loads(open(savePathRecognizer, "rb").read())
+le = pickle.loads(open(savePathLabels, "rb").read())
 
-imageURL = "" # Image from S3 bucket (source yet to be known)
-frame = downloadFrom(imageURL)
 frame = imutils.resize(frame, width = 600)
 (h, w) = frame.shape[:2]
 
@@ -49,7 +62,6 @@ for i in range(0, detections.shape[2]):
         faceBlob = cv2.dnn.blobFromImage(face, 1.0/255, (96, 96), (0, 0, 0), swapRB = True, crop = False)
         embedder.setInput(faceBlob)
         vec = embedder.forward()
-        # print(vec)
         preds = recognizer.predict_proba(vec)[0]
         j = np.argmax(preds)
         proba = preds[j]
@@ -58,5 +70,5 @@ for i in range(0, detections.shape[2]):
         returnStatus(None)
     else:
         returnStatus("Low confidence. Send a better photo.\n")
-    
-    
+
+# -------------------------------------------------------------------------------------------
