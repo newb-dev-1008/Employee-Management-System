@@ -9,7 +9,7 @@ from datetime import datetime
 
 def returnStatus(resultString):
     # Handle the return calls to the admin via their APIs
-    # Finish this (Mark employee attendance + other functionalities)
+    # Finish this (Mark employee attendance + other functionalities)    
     return resultString
 
 # --------------------------------------- Variables and paths for configuration ---------------------------------------
