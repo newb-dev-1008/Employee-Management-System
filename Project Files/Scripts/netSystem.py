@@ -44,14 +44,21 @@ class FaceRecognitionSystem:
         self.savePathLabels = savePathLabels
 
     # --------------------------------------- Program to train an SVM recognizer ---------------------------------------
-    
+
     def trainRecognizer(self):
-        # Argparse arguments
-        savingMultiple = str(input("Saving multiple people?: ")) 
-        if (savingMultiple == "No"):
-            name = # Name of person
+
+        numSaving = len(os.listdir(self.datasetPathURL))
+        if (numSaving == 0):
+            self.returnStatus("No data to train.\n")
+        elif (numSaving == 1):
+            savingMultiple = "No"
         else:
-            names = # List of names in order of photos
+            savingMultiple = "Yes"
+            
+        if (savingMultiple == "No"):
+            name = os.listdir(self.datasetPathURL)[0]
+        else:
+            names = os.listdir(self.datasetPathURL)
 
         # FaceNet
         protoPath = os.path.sep.join([self.protoPathFolder, 'deploy.prototxt'])
@@ -358,8 +365,9 @@ class FaceRecognitionSystem:
 
     def returnStatus(self, message):
 
-        error = "Low confidence. Send a better photo.\n"
-        if (message == error):
+        error_confidence = "Low confidence. Send a better photo.\n"
+        error_noTrainingData = "No data for training.\n"
+        if ((message == error_confidence) or (message == error_noTrainingData)):
             # Ask user to send a new photo. Once photo is uploaded, trigger the recognizePerson() function
             return "Repeat the process.\n"
 
