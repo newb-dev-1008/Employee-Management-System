@@ -30,9 +30,15 @@ class FaceRecognitionSystem:
     savePathRecognizer = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Recognizer\recognizer.pickle" 
     savePathLabels = r"C:\Users\Yash Umale\Documents\7th Sem\Face Recognition Project\Misc Files\Recognizer\le.pickle"
 
-    def __init__(self, datasetPathURL = datasetPathURL, protoPathFolder = protoPathFolder, modelPathFolder = modelPathFolder, 
-    embedderPath = embedderPath, embeddingsFolder = embeddingsFolder, mainEmbeddingsPath = mainEmbeddingsPath, 
-    savePathRecognizer = savePathRecognizer, savePathLabels = savePathLabels):
+    def __init__(self, 
+        datasetPathURL = datasetPathURL, 
+        protoPathFolder = protoPathFolder, 
+        modelPathFolder = modelPathFolder, 
+        embedderPath = embedderPath, 
+        embeddingsFolder = embeddingsFolder, 
+        mainEmbeddingsPath = mainEmbeddingsPath, 
+        savePathRecognizer = savePathRecognizer, 
+        savePathLabels = savePathLabels):
 
         self.datasetPathURL = datasetPathURL
         self.protoPathFolder = protoPathFolder
