@@ -49,6 +49,22 @@ class FaceRecognitionSystem:
         self.savePathRecognizer = savePathRecognizer
         self.savePathLabels = savePathLabels
 
+    # ---------------------------------- Function to return appropriate ID or message ----------------------------------
+
+    def returnStatus(self, message):
+
+        error_confidence = "Low confidence. Send a better photo.\n"
+        error_noTrainingData = "No data for training.\n"
+        if ((message == error_confidence) or (message == error_noTrainingData)):
+            # Ask user to send a new photo. Once photo is uploaded, trigger the recognizePerson() function
+            return "Repeat the process.\n"
+
+        else:
+            # Return the ID of the recognized person
+            return message
+
+    # ------------------------------------------------------------------------------------------------------------------
+
     # --------------------------------------- Program to train an SVM recognizer ---------------------------------------
 
     def trainRecognizer(self):
@@ -368,27 +384,10 @@ class FaceRecognitionSystem:
                 proba = preds[j]
                 name = le.classes_[j]
 
-                print(proba)
-                print(name)
-
-                # self.returnStatus(name)
-            # else:
-                # self.returnStatus("Low confidence. Send a better photo.\n")
-
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # ---------------------------------- Function to return appropriate ID or message ----------------------------------
-
-    def returnStatus(self, message):
-
-        error_confidence = "Low confidence. Send a better photo.\n"
-        error_noTrainingData = "No data for training.\n"
-        if ((message == error_confidence) or (message == error_noTrainingData)):
-            # Ask user to send a new photo. Once photo is uploaded, trigger the recognizePerson() function
-            return "Repeat the process.\n"
-
-        else:
-            # Return the ID of the recognized person
-            return message
+                self.returnStatus(name)
+            else:
+                self.returnStatus("Low confidence. Send a better photo.\n")
+            
+            os.remove(imageURL)
 
     # ------------------------------------------------------------------------------------------------------------------
