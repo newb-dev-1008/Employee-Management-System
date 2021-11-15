@@ -44,6 +44,7 @@ class FaceRecognitionSystem:
         self.savePathLabels = savePathLabels
 
     # --------------------------------------- Program to train an SVM recognizer ---------------------------------------
+    
     def trainRecognizer(self):
         # Argparse arguments
         savingMultiple = str(input("Saving multiple people?: ")) 
@@ -301,10 +302,11 @@ class FaceRecognitionSystem:
             f = open(self.savePathLabels, "wb")
             f.write(pickle.dumps(le))
             f.close()
-            
+
     # ---------------------------------------------------------------------------------------------------------------------
 
     # --------------------------------------- Program to recognize people real-time ---------------------------------------
+
     def recognizePerson(self, imageURL):
 
         # Initialize face detector
@@ -319,7 +321,7 @@ class FaceRecognitionSystem:
         recognizer = pickle.loads(open(self.savePathRecognizer, "rb").read())
         le = pickle.loads(open(self.savePathLabels, "rb").read())
 
-        frame = # Use imageURL to 
+        frame = # Use imageURL to download the image
         frame = imutils.resize(frame, width = 600)
         (h, w) = frame.shape[:2]
 
@@ -346,8 +348,23 @@ class FaceRecognitionSystem:
                 proba = preds[j]
                 name = le.classes_[j]
 
-                returnStatus(None)
+                self.returnStatus(name)
             else:
-                returnStatus("Low confidence. Send a better photo.\n")
+                self.returnStatus("Low confidence. Send a better photo.\n")
 
-    # -------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # ---------------------------------- Function to return appropriate ID or message ----------------------------------
+
+    def returnStatus(self, message):
+
+        error = "Low confidence. Send a better photo.\n"
+        if (message == error):
+            # Ask user to send a new photo. Once photo is uploaded, trigger the recognizePerson() function
+            return "Repeat the process.\n"
+
+        else:
+            # Return the ID of the recognized person
+            return message
+
+    # ------------------------------------------------------------------------------------------------------------------
