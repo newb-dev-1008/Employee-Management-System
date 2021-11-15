@@ -368,7 +368,7 @@ class FaceRecognitionSystem:
             
         for i in range(0, detections.shape[2]):
             confidence = detections[0, 0, i, 2]
-            if (confidence > 0.2):
+            if (confidence > 0.6):
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 (startX, startY, endX, endY) = box.astype("int")
                 
@@ -383,11 +383,9 @@ class FaceRecognitionSystem:
                 j = np.argmax(preds)
                 proba = preds[j]
                 name = le.classes_[j]
-
-                self.returnStatus(name)
-            else:
-                self.returnStatus("Low confidence. Send a better photo.\n")
+                prediction = self.returnStatus(name)
             
-            os.remove(imageURL)
+        os.remove(imageURL)
+        return prediction
 
     # ------------------------------------------------------------------------------------------------------------------
