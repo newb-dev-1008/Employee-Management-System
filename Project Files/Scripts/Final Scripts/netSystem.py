@@ -1,5 +1,5 @@
 # This file handles the entire process of training and recognizing people real-time.
-# The methods defined in this class are executed sequentially as displayed under #main 
+# Use trainer.py and recognizer.py for specific operations that use methods defined here. 
 
 # ---------------------------- Required Packages ----------------------------
 from imutils import paths
