@@ -298,6 +298,11 @@ class FaceRecognitionSystem:
             le = LabelEncoder()
             labels = le.fit_transform(data['Names'])
 
+            # DELETE: For testing purposes only
+            numLabels = len(data["Names"])
+            print("Number of labels: ", numLabels, "\n")
+            print("Labels:\n", data["Labels"])
+
             recognizer = SVC(C = 1.0, kernel = "linear", probability = True)
             recognizer.fit(data["Embeddings"], labels)
 
