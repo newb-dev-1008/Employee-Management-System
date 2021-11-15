@@ -118,7 +118,7 @@ class FaceRecognitionSystem:
                         i = np.argmax(detections[0, 0, :, 2])
                         confidence = detections[0, 0, i, 2]  
 
-                        if (confidence > 0.1):                                                          
+                        if (confidence > 0.6):                                                          
                             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                             (startX, startY, endX, endY) = box.astype("int")
 
@@ -171,7 +171,7 @@ class FaceRecognitionSystem:
                         i = np.argmax(detections[0, 0, :, 2])
                         confidence = detections[0, 0, i, 2]  
 
-                        if (confidence > 0.1):                                                          
+                        if (confidence > 0.6):                                                          
                             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                             (startX, startY, endX, endY) = box.astype("int")
 
@@ -230,7 +230,7 @@ class FaceRecognitionSystem:
                             i = np.argmax(detections[0, 0, :, 2])
                             confidence = detections[0, 0, i, 2]  
 
-                            if (confidence > 0.1):                                                          
+                            if (confidence > 0.6):                                                          
                                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                                 (startX, startY, endX, endY) = box.astype("int")
 
@@ -283,7 +283,7 @@ class FaceRecognitionSystem:
                             i = np.argmax(detections[0, 0, :, 2])
                             confidence = detections[0, 0, i, 2]  
 
-                            if (confidence > 0.1):                                                          
+                            if (confidence > 0.6):                                                          
                                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                                 (startX, startY, endX, endY) = box.astype("int")
 
@@ -325,6 +325,7 @@ class FaceRecognitionSystem:
             print("Number of labels: ", numLabels, "\n")
             print("Labels:\n", list(set(data["Names"])))
 
+            # TODO: Scale the SVM up to meet with addition of more labels
             recognizer = SVC(C = 1.0, kernel = "linear", probability = True)
             recognizer.fit(data["Embeddings"], labels)
 
@@ -382,7 +383,12 @@ class FaceRecognitionSystem:
                 preds = recognizer.predict_proba(vec)[0]
                 j = np.argmax(preds)
                 proba = preds[j]
-                name = le.classes_[j]
+
+                if (proba > 0.7):
+                    name = le.classes_[j]
+                else:
+                    name = "Unknown"
+                    
                 prediction = self.returnStatus(name)
             
         os.remove(imageURL)

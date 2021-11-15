@@ -21,7 +21,7 @@ filename = imageURL.split("/")[-1]
 urllib.request.urlretrieve(imageURL, filename)
 
 # Pass the downloaded file path into recognizePerson()
-imagePath = os.path.join(temporary_directory, filename)
+imagePath = os.path.sep.join(temporary_directory, filename)
 system = FaceRecognitionSystem()
 system.recognizePerson(imagePath)
 
