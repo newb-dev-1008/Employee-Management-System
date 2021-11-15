@@ -75,7 +75,7 @@ class FaceRecognitionSystem:
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
 
         if (savingMultiple == "No"): 
-            userDatasetFolder = self.datasetFolder + "\\" + name # Folder containing images of a specific user
+            userDatasetFolder = self.datasetPathURL + "\\" + name # Folder containing images of a specific user
 
             if (len(os.listdir(self.embeddingsFolder)) == 0):
                 imagePaths = list(paths.list_images(userDatasetFolder))
@@ -188,7 +188,7 @@ class FaceRecognitionSystem:
 
         else:
             for name in names:
-                userDatasetFolder = self.datasetFolder + "\\" + name
+                userDatasetFolder = self.datasetPathURL + "\\" + name
                 
                 if (len(os.listdir(self.embeddingsFolder)) == 0):
                     imagePaths = list(paths.list_images(userDatasetFolder))
@@ -296,7 +296,7 @@ class FaceRecognitionSystem:
                         f.close()
             
 
-            shutil.rmtree(userDatasetFolder)
+                shutil.rmtree(userDatasetFolder)
 
         # Training the SVM on new labels and embeddings
         if (len(os.listdir(self.embeddingsFolder)) >= 2):
@@ -304,10 +304,10 @@ class FaceRecognitionSystem:
             le = LabelEncoder()
             labels = le.fit_transform(data['Names'])
 
-            # DELETE: For testing purposes only
-            numLabels = len(data["Names"])
+            # TODO: DELETE - For testing purposes only
+            numLabels = len(set(data["Names"]))
             print("Number of labels: ", numLabels, "\n")
-            print("Labels:\n", data["Labels"])
+            print("Labels:\n", list(set(data["Names"])))
 
             recognizer = SVC(C = 1.0, kernel = "linear", probability = True)
             recognizer.fit(data["Embeddings"], labels)
@@ -339,7 +339,9 @@ class FaceRecognitionSystem:
         recognizer = pickle.loads(open(self.savePathRecognizer, "rb").read())
         le = pickle.loads(open(self.savePathLabels, "rb").read())
 
-        frame = # Use imageURL to download the image
+        # TODO: Rectify this variable as per image URL
+        frame = cv2.imread(imageURL)
+
         frame = imutils.resize(frame, width = 600)
         (h, w) = frame.shape[:2]
 
@@ -366,9 +368,12 @@ class FaceRecognitionSystem:
                 proba = preds[j]
                 name = le.classes_[j]
 
-                self.returnStatus(name)
-            else:
-                self.returnStatus("Low confidence. Send a better photo.\n")
+                print(proba)
+                print(name)
+
+                # self.returnStatus(name)
+            # else:
+                # self.returnStatus("Low confidence. Send a better photo.\n")
 
     # ------------------------------------------------------------------------------------------------------------------
 
