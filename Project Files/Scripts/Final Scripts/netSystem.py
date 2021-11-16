@@ -11,6 +11,7 @@ import cv2
 import os
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 import argparse
 import shutil
 # ----------------------------------------------------------------------------
@@ -326,11 +327,15 @@ class FaceRecognitionSystem:
             print("Labels:\n", list(set(data["Names"])))
 
             # TODO: Scale the SVM up to meet with addition of more labels
-            recognizer = SVC(C = 1.0, kernel = "linear", probability = True)
-            recognizer.fit(data["Embeddings"], labels)
+
+            param_grid = {'C' : [0.1, 1, 10, 100], 'gamma' : [1, 0.1, 0.01, 0.001, 0.0001], 
+            'gamma' : ['scale', 'auto'], 'kernel' : ['linear', 'rbf', 'poly']}
+
+            grid = GridSearchCV(SVC(probability = True), param_grid, refit = True, verbose = 3, n_jobs = -1)
+            grid.fit(data["Embeddings"], labels)
 
             f = open(self.savePathRecognizer, "wb")
-            f.write(pickle.dumps(recognizer))
+            f.write(pickle.dumps(grid))
             f.close()
 
             # Save the label encoder
