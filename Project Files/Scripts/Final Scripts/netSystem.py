@@ -321,13 +321,6 @@ class FaceRecognitionSystem:
             le = LabelEncoder()
             labels = le.fit_transform(data['Names'])
 
-            # TODO: DELETE - For testing purposes only
-            numLabels = len(set(data["Names"]))
-            print("Number of labels: ", numLabels, "\n")
-            print("Labels:\n", list(set(data["Names"])))
-
-            # TODO: Scale the SVM up to meet with addition of more labels
-
             param_grid = {'C' : [0.1, 1, 10, 100], 'gamma' : [1, 0.1, 0.01, 0.001, 0.0001], 
             'gamma' : ['scale', 'auto'], 'kernel' : ['linear', 'rbf', 'poly']}
 
