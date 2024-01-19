@@ -65,7 +65,7 @@ For best results, please try and ensure your dataset adheres to the following:
 1. Add photos of your employees to the `Datasets` folder, in the following manner:
     * JPEG, PNG and BMP are accepted formats.
     * All employees need not have the same number of images. However, ensure they have unique names or unique IDs for their respective folder names.
-    * For best results, please see [Guidelines on data collection]().
+    * For best results, please see [Guidelines on data collection](https://github.com/newb-dev-1008/Employee-Management-System?tab=readme-ov-file#guidelines-on-data-collection).
 
     ```
     Datasets
