@@ -1,5 +1,5 @@
 # This file handles the entire process of training and recognizing people real-time.
-# Use trainer.py and recognizer.py for specific operations that use methods defined here. 
+# Use trainer.py for specific operations that use methods defined here. 
 
 # ---------------------------- Required Packages ----------------------------
 from imutils import paths
@@ -22,16 +22,19 @@ class FaceRecognitionSystem:
     # would be treated as default for the system.
     # The paths passed by the client company will overwrite your default paths.
 
-    mainDirName = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    mainDirName = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     datasetPathURL = os.path.join(mainDirName, "Datasets")
-    protoPathFolder = os.path.join(mainDirName, r"Models\Face Detection")
-    modelPathFolder = os.path.join(mainDirName, r"Models\Face Detection")
-    embedderPath = os.path.join(mainDirName, r"Models\Embedder\openface_nn4.small2.v1.t7")
-    embeddingsFolder = os.path.join(mainDirName, r"Embeddings and labels\Individual Embeddings")
-    mainEmbeddingsPath = os.path.join(mainDirName, r"Embeddings and labels\Collective\embeddings.pickle")
-    savePathRecognizer = os.path.join(mainDirName, r"Recognizer\recognizer.pickle") 
-    savePathLabels = os.path.join(mainDirName, r"Recognizer\le.pickle")
-
+    protoPathFolder = os.path.join(mainDirName, r"backend_support\Models\Face Detection")
+    modelPathFolder = os.path.join(mainDirName, r"backend_support\Models\Face Detection")
+    embedderPath = os.path.join(mainDirName, r"backend_support\Models\Embedder\openface_nn4.small2.v1.t7")
+    embeddingsFolder = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Individual Embeddings")
+    mainEmbeddingsPath = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Collective\embeddings.pickle")
+    savePathRecognizer = os.path.join(mainDirName, r"backend_support\Recognizer\recognizer.pickle") 
+    savePathLabels = os.path.join(mainDirName, r"backend_support\Recognizer\le.pickle")
+    
+    # FaceNet detector model - responsible for face localization within an image
+    protoPath = os.path.sep.join([self.protoPathFolder, 'deploy.prototxt'])
+    modelPath = os.path.sep.join([self.modelPathFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
 
     def __init__(self, 
         datasetPathURL = datasetPathURL, 
@@ -41,7 +44,8 @@ class FaceRecognitionSystem:
         embeddingsFolder = embeddingsFolder, 
         mainEmbeddingsPath = mainEmbeddingsPath, 
         savePathRecognizer = savePathRecognizer, 
-        savePathLabels = savePathLabels):
+        savePathLabels = savePathLabels,
+        deleteDataset = deleteDataset):
 
         self.datasetPathURL = datasetPathURL
         self.protoPathFolder = protoPathFolder
@@ -51,282 +55,112 @@ class FaceRecognitionSystem:
         self.mainEmbeddingsPath = mainEmbeddingsPath
         self.savePathRecognizer = savePathRecognizer
         self.savePathLabels = savePathLabels
-
-    # ---------------------------------- Function to return appropriate ID or message ----------------------------------
-
-    def returnStatus(self, message):
-
-        error_confidence = "Low confidence. Send a better photo.\n"
-        error_noTrainingData = "No data for training.\n"
-        if ((message == error_confidence) or (message == error_noTrainingData)):
-            # Ask user to send a new photo. Once photo is uploaded, trigger the recognizePerson() function
-            return "Repeat the process.\n"
-
-        else:
-            # Return the ID of the recognized person
-            return message
-
-    # ------------------------------------------------------------------------------------------------------------------
+        self.deleteDataset = deleteDataset
 
     # --------------------------------------- Program to train an SVM recognizer ---------------------------------------
 
     def trainRecognizer(self):
 
+        # Find number of people in the dataset
         numSaving = len(os.listdir(self.datasetPathURL))
-        if (numSaving == 0):
-            self.returnStatus("No data to train.\n")
-        elif (numSaving == 1):
-            savingMultiple = "No"
-        else:
-            savingMultiple = "Yes"
-            
-        if (savingMultiple == "No"):
-            name = os.listdir(self.datasetPathURL)[0]
-        else:
-            names = os.listdir(self.datasetPathURL)
 
-        # FaceNet
-        protoPath = os.path.sep.join([self.protoPathFolder, 'deploy.prototxt'])
-        modelPath = os.path.sep.join([self.modelPathFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
+        # If the dataset is empty, end the program here
+        if (numSaving == 0):
+            return "No data to train.\n"
+        
+        # Get names for all individuals (all folder names)
+        names = os.listdir(self.datasetPathURL)
+
+        # Initialize the face detector model
         detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
 
-        # Face Recognizer
+        # Face Recognizer CNN - responsible for conversion of an image to a 128-D representation
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
 
-        if (savingMultiple == "No"): 
-            userDatasetFolder = self.datasetPathURL + "\\" + name # Folder containing images of a specific user
+        # Generating 128-D representation embeddings for each person
+        for name in names:
+            userDatasetFolder = self.datasetPathURL + "\\" + name
+            imagePaths = list(paths.list_images(userDatasetFolder))
+            embedsFolder = self.embeddingsFolder + "\\" + name
+            os.mkdir(embedsFolder)
+            embeddingsPath = embedsFolder + "\\embeddings.pickle"
 
-            if (len(os.listdir(self.embeddingsFolder)) == 0):
-                imagePaths = list(paths.list_images(userDatasetFolder))
-
-                embedsFolder = self.embeddingsFolder + "\\" + name
-                os.mkdir(embedsFolder)
-                embeddingsPath = embedsFolder + "\\embeddings.pickle"
-
-                knownEmbeddings = []
-                mainEmbeddings = []
-                mainNames = []
-
-                for (i, imagePath) in enumerate(imagePaths):
-                    name = imagePath.split(os.path.sep)[-2]
-                    image = cv2.imread(imagePath)
-                    image = imutils.resize(image, width = 600)
-
-                    (h, w) = image.shape[:2]                                                        
-                    imageBlob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-                    detector.setInput(imageBlob)                                                    
-                    detections = detector.forward()
-
-                    if (len(detections) > 0):                                                         
-                        i = np.argmax(detections[0, 0, :, 2])
-                        confidence = detections[0, 0, i, 2]  
-
-                        if (confidence > 0.6):                                                          
-                            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                            (startX, startY, endX, endY) = box.astype("int")
-
-                            face = image[startY:endY, startX:endX]
-                            (fH, fW) = face.shape[:2]	
-
-                            if (fW < 20 or fH < 20):
-                                continue    
-
-                            faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)                   
-                            embedder.setInput(faceBlob)
-                            vec = embedder.forward()
-
-                            mainEmbeddings.append(vec.flatten())
-                            knownEmbeddings.append(vec.flatten())
-                            mainNames.append(name)
-
-                data = {"Embeddings" : mainEmbeddings, "Names" : mainNames}
-                f = open(self.mainEmbeddingsPath, "wb")
-                f.write(pickle.dumps(data))
-                f.close()
-
-                userEmbeddingsPath = embeddingsPath
-                f = open(userEmbeddingsPath, "wb")
-                f.write(pickle.dumps(knownEmbeddings))
-                f.close()
-
-            else:
-                imagePaths = list(paths.list_images(userDatasetFolder))
-                embedsFolder = self.embeddingsFolder + "\\" + name
-                os.mkdir(embedsFolder)
-                embeddingsPath = embedsFolder + "\\embeddings.pickle"
-
+            userEmbeddings = []
+            mainEmbeddings = []
+            mainNames = []
+            
+            # If there are embeddings from a previous usage already present
+            # And you're just adding a new person to an already existent embeddings storage location
+            if (len(os.listdir(self.embeddingsFolder)) != 0):
+                
+                # Load the embeddings of the earlier people into the lists
+                # To include them collectively in the new training process
                 data = pickle.loads(open(self.mainEmbeddingsPath, "rb").read())
-                knownEmbeddings = []
-                previouslyKnownEmbeddings = data["Embeddings"]
-                previouslyKnownNames = data["Names"]
+                mainNames = data["Names"]
+                mainEmbeddings = data["Embeddings"]
 
-                for (i, imagePath) in enumerate(imagePaths):
-                    name = imagePath.split(os.path.sep)[-2]
-                    image = cv2.imread(imagePath)
-                    image = imutils.resize(image, width = 600)
-
-                    (h, w) = image.shape[:2]                                                        
-                    imageBlob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-                    detector.setInput(imageBlob)                                                    
-                    detections = detector.forward()
-
-                    if (len(detections) > 0):                                                         
-                        i = np.argmax(detections[0, 0, :, 2])
-                        confidence = detections[0, 0, i, 2]  
-
-                        if (confidence > 0.6):                                                          
-                            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                            (startX, startY, endX, endY) = box.astype("int")
-
-                            face = image[startY:endY, startX:endX]
-                            (fH, fW) = face.shape[:2]	
-
-                            if (fW < 20 or fH < 20):
-                                continue    
-
-                            faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)                   
-                            embedder.setInput(faceBlob)
-                            vec = embedder.forward()
-
-                            previouslyKnownNames.append(name)                                                    
-                            previouslyKnownEmbeddings.append(vec.flatten())
-                            knownEmbeddings.append(vec.flatten())
-
-                data = {"Embeddings" : previouslyKnownEmbeddings, "Names" : previouslyKnownNames}
-                f = open(self.mainEmbeddingsPath, "wb")
-                f.write(pickle.dumps(data))
-                f.close()
-
-                userEmbeddingsPath = embeddingsPath
-                f = open(userEmbeddingsPath, "wb")
-                f.write(pickle.dumps(knownEmbeddings))
-                f.close()
-            
-
-            shutil.rmtree(userDatasetFolder)
-
-        else:
-            for name in names:
-                userDatasetFolder = self.datasetPathURL + "\\" + name
                 
-                if (len(os.listdir(self.embeddingsFolder)) == 0):
-                    imagePaths = list(paths.list_images(userDatasetFolder))
-                    embedsFolder = self.embeddingsFolder + "\\" + name
-                    os.mkdir(embedsFolder)
-                    embeddingsPath = embedsFolder + "\\embeddings.pickle"
-                    
-                    knownEmbeddings = []
-                    mainEmbeddings = []
-                    mainNames = []
+            for (i, imagePath) in enumerate(imagePaths):
+                name = imagePath.split(os.path.sep)[-2]
+                image = cv2.imread(imagePath)
+                image = imutils.resize(image, width = 600)
+                (h, w) = image.shape[:2]                                                        
+                imageBlob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
+                detector.setInput(imageBlob)                                                    
+                detections = detector.forward()
 
-                    for (i, imagePath) in enumerate(imagePaths):
-                        name = imagePath.split(os.path.sep)[-2]
-                        image = cv2.imread(imagePath)
-                        image = imutils.resize(image, width = 600)
+                # If any face is detected in the image
+                if (len(detections) > 0):                                                         
+                    i = np.argmax(detections[0, 0, :, 2])
+                    confidence = detections[0, 0, i, 2]
 
-                        (h, w) = image.shape[:2]                                                        
-                        imageBlob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-                        detector.setInput(imageBlob)                                                    
-                        detections = detector.forward()
+                    # If the model is at least 70% confident that it has found a face
+                    # It'll create a face blob out of the image
+                    if (confidence > 0.7):                                                          
+                        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                        (startX, startY, endX, endY) = box.astype("int")
+                        face = image[startY:endY, startX:endX]
+                        (fH, fW) = face.shape[:2]	
+                        if (fW < 20 or fH < 20):
+                            continue
+                        
+                        # Get the 128-D output from the CNN
+                        faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)                   
+                        embedder.setInput(faceBlob)
+                        vec = embedder.forward()
 
-                        if (len(detections) > 0):                                                         
-                            i = np.argmax(detections[0, 0, :, 2])
-                            confidence = detections[0, 0, i, 2]  
+                        # Add the new embedding to the list of embeddings 
+                        mainEmbeddings.append(vec.flatten())
+                        userEmbeddings.append(vec.flatten())
+                        mainNames.append(name)
 
-                            if (confidence > 0.6):                                                          
-                                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                                (startX, startY, endX, endY) = box.astype("int")
+            # Write the updated embeddings list (with previous people + newly added person) back to file
+            data = {"Embeddings" : mainEmbeddings, "Names" : mainNames}
+            f = open(self.mainEmbeddingsPath, "wb")
+            f.write(pickle.dumps(data))
+            f.close()
 
-                                face = image[startY:endY, startX:endX]
-                                (fH, fW) = face.shape[:2]	
-
-                                if (fW < 20 or fH < 20):
-                                    continue    
-
-                                faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)                   
-                                embedder.setInput(faceBlob)
-                                vec = embedder.forward()
-
-                                mainEmbeddings.append(vec.flatten())
-                                knownEmbeddings.append(vec.flatten())
-                                mainNames.append(name)
-
-                    data = {"Embeddings" : mainEmbeddings, "Names" : mainNames}
-                    f = open(self.mainEmbeddingsPath, "wb")
-                    f.write(pickle.dumps(data))
-                    f.close()
-
-                    userEmbeddingsPath = embeddingsPath
-                    f = open(userEmbeddingsPath, "wb")
-                    f.write(pickle.dumps(knownEmbeddings))
-                    f.close()
-                
-                else:
-                    imagePaths = list(paths.list_images(userDatasetFolder))
-                    embedsFolder = self.embeddingsFolder + "\\" + name
-                    os.mkdir(embedsFolder)
-                    embeddingsPath = embedsFolder + "\\embeddings.pickle"
-
-                    data = pickle.loads(open(self.mainEmbeddingsPath, "rb").read())
-                    knownEmbeddings = []
-                    previouslyKnownEmbeddings = data["Embeddings"]
-                    previouslyKnownNames = data["Names"]
-
-                    for (i, imagePath) in enumerate(imagePaths):
-                        name = imagePath.split(os.path.sep)[-2]
-                        image = cv2.imread(imagePath)
-                        image = imutils.resize(image, width = 600)
-
-                        (h, w) = image.shape[:2]                                                        
-                        imageBlob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-                        detector.setInput(imageBlob)                                                    
-                        detections = detector.forward()
-
-                        if (len(detections) > 0):                                                         
-                            i = np.argmax(detections[0, 0, :, 2])
-                            confidence = detections[0, 0, i, 2]  
-
-                            if (confidence > 0.6):                                                          
-                                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                                (startX, startY, endX, endY) = box.astype("int")
-
-                                face = image[startY:endY, startX:endX]
-                                (fH, fW) = face.shape[:2]	
-
-                                if (fW < 20 or fH < 20):
-                                    continue    
-
-                                faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)                   
-                                embedder.setInput(faceBlob)
-                                vec = embedder.forward()
-
-                                previouslyKnownNames.append(name)                                                    
-                                previouslyKnownEmbeddings.append(vec.flatten())
-                                knownEmbeddings.append(vec.flatten())
-
-                        data = {"Embeddings" : previouslyKnownEmbeddings, "Names" : previouslyKnownNames}
-                        f = open(self.mainEmbeddingsPath, "wb")
-                        f.write(pickle.dumps(data))
-                        f.close()
-
-                        userEmbeddingsPath = embeddingsPath
-                        f = open(userEmbeddingsPath, "wb")
-                        f.write(pickle.dumps(knownEmbeddings))
-                        f.close()
-            
-
+            # Create a new embeddings pickle file for the specific person and all their images
+            userEmbeddingsPath = embeddingsPath
+            f = open(userEmbeddingsPath, "wb")
+            f.write(pickle.dumps(knownEmbeddings))
+            f.close()
+        
+            # Delete the current dataset folder and its photos
+            # As training is done, in the interest of space
+            if (self.deleteDataset == True)
                 shutil.rmtree(userDatasetFolder)
 
-        # Training the SVM on new labels and embeddings
+        # Training the SVM on new labels and embeddings - only if the number of folders in embeddingsFolder is more than 2
+        # One folder for collective embeddings of all people, another for any person whose photos have been trained.
         if (len(os.listdir(self.embeddingsFolder)) >= 2):
             data = pickle.loads(open(self.mainEmbeddingsPath, 'rb').read())
             le = LabelEncoder()
             labels = le.fit_transform(data['Names'])
 
-            param_grid = {'C' : [0.1, 1, 10, 100], 'gamma' : [1, 0.1, 0.01, 0.001, 0.0001], 
-            'gamma' : ['scale', 'auto'], 'kernel' : ['linear', 'rbf', 'poly']}
+            param_grid = {'C' : [0.001, 0.01, 0.1, 1, 10, 100], 'gamma' : [100, 10, 1, 0.1, 0.01, 0.001, 0.0001], 'kernel' : ['linear', 'rbf', 'poly']}
 
-            grid = GridSearchCV(SVC(probability = True), param_grid, refit = True, verbose = 3, n_jobs = -1)
+            grid = GridSearchCV(SVC(probability = True), param_grid, scoring = "precision", refit = True, verbose = 3, n_jobs = -1)
             grid.fit(data["Embeddings"], labels)
 
             f = open(self.savePathRecognizer, "wb")
@@ -345,8 +179,6 @@ class FaceRecognitionSystem:
     def recognizePerson(self, imageURL):
 
         # Initialize face detector
-        protoPath = os.path.sep.join([self.protoPathFolder, 'deploy.prototxt'])
-        modelPath = os.path.sep.join([self.modelPathFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
         detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
 
         # Load our serialized face embedding model
@@ -356,9 +188,7 @@ class FaceRecognitionSystem:
         recognizer = pickle.loads(open(self.savePathRecognizer, "rb").read())
         le = pickle.loads(open(self.savePathLabels, "rb").read())
 
-        # TODO: Rectify this variable as per image URL
         frame = cv2.imread(imageURL)
-
         frame = imutils.resize(frame, width = 600)
         (h, w) = frame.shape[:2]
 
@@ -384,12 +214,12 @@ class FaceRecognitionSystem:
                 j = np.argmax(preds)
                 proba = preds[j]
 
-                if (proba > 0.5):
+                if (proba > 0.7):
                     name = le.classes_[j]
                 else:
                     name = "Unknown"
                     
-                prediction = self.returnStatus(name)
+                prediction = name
             
         os.remove(imageURL)
         return prediction
