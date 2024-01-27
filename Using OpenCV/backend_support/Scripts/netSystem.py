@@ -24,32 +24,28 @@ class FaceRecognitionSystem:
 
     mainDirName = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     datasetPathURL = os.path.join(mainDirName, "Datasets")
-    protoPathFolder = os.path.join(mainDirName, r"backend_support\Models\Face Detection")
-    modelPathFolder = os.path.join(mainDirName, r"backend_support\Models\Face Detection")
+    protoPath = os.path.join(mainDirName, r"backend_support\Models\Face Detection\deploy.prototxt")
+    modelPath = os.path.join(mainDirName, r"backend_support\Models\Face Detection\res10_300x300_ssd_iter_140000.caffemodel")
     embedderPath = os.path.join(mainDirName, r"backend_support\Models\Embedder\openface_nn4.small2.v1.t7")
     embeddingsFolder = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Individual Embeddings")
     mainEmbeddingsPath = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Collective\embeddings.pickle")
     savePathRecognizer = os.path.join(mainDirName, r"backend_support\Recognizer\recognizer.pickle") 
     savePathLabels = os.path.join(mainDirName, r"backend_support\Recognizer\le.pickle")
-    
-    # FaceNet detector model - responsible for face localization within an image
-    protoPath = os.path.sep.join([self.protoPathFolder, 'deploy.prototxt'])
-    modelPath = os.path.sep.join([self.modelPathFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
 
     def __init__(self, 
         datasetPathURL = datasetPathURL, 
-        protoPathFolder = protoPathFolder, 
-        modelPathFolder = modelPathFolder, 
+        protoPath = protoPath, 
+        modelPath = modelPath, 
         embedderPath = embedderPath, 
         embeddingsFolder = embeddingsFolder, 
         mainEmbeddingsPath = mainEmbeddingsPath, 
         savePathRecognizer = savePathRecognizer, 
         savePathLabels = savePathLabels,
-        deleteDataset = deleteDataset):
+        deleteDataset = True):
 
         self.datasetPathURL = datasetPathURL
-        self.protoPathFolder = protoPathFolder
-        self.modelPathFolder = modelPathFolder
+        self.protoPathFolder = protoPath
+        self.modelPathFolder = modelPath
         self.embedderPath = embedderPath
         self.embeddingsFolder = embeddingsFolder
         self.mainEmbeddingsPath = mainEmbeddingsPath
@@ -72,7 +68,7 @@ class FaceRecognitionSystem:
         names = os.listdir(self.datasetPathURL)
 
         # Initialize the face detector model
-        detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
+        detector = cv2.dnn.readNetFromCaffe(self.protoPath, self.modelPath)
 
         # Face Recognizer CNN - responsible for conversion of an image to a 128-D representation
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
@@ -99,7 +95,7 @@ class FaceRecognitionSystem:
                 mainNames = data["Names"]
                 mainEmbeddings = data["Embeddings"]
 
-                
+
             for (i, imagePath) in enumerate(imagePaths):
                 name = imagePath.split(os.path.sep)[-2]
                 image = cv2.imread(imagePath)
@@ -141,14 +137,15 @@ class FaceRecognitionSystem:
             f.close()
 
             # Create a new embeddings pickle file for the specific person and all their images
+            # Not necessary, but good to have instead of storing entire datasets
             userEmbeddingsPath = embeddingsPath
             f = open(userEmbeddingsPath, "wb")
-            f.write(pickle.dumps(knownEmbeddings))
+            f.write(pickle.dumps(userEmbeddings))
             f.close()
         
             # Delete the current dataset folder and its photos
             # As training is done, in the interest of space
-            if (self.deleteDataset == True)
+            if (self.deleteDataset == True):
                 shutil.rmtree(userDatasetFolder)
 
         # Training the SVM on new labels and embeddings - only if the number of folders in embeddingsFolder is more than 2
@@ -179,7 +176,7 @@ class FaceRecognitionSystem:
     def recognizePerson(self, imageURL):
 
         # Initialize face detector
-        detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
+        detector = cv2.dnn.readNetFromCaffe(self.protoPath, self.modelPath)
 
         # Load our serialized face embedding model
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
@@ -225,3 +222,13 @@ class FaceRecognitionSystem:
         return prediction
 
     # ------------------------------------------------------------------------------------------------------------------
+
+    # --------------------------------------- Function to perform face alignment ---------------------------------------
+    def faceAlignment():
+        return
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # -------------------------------------- Function to perform data augmentation -------------------------------------
+    def dataAugmentation():
+        return
+    # ------------------------------------------------------------------------------------------------------------------ 

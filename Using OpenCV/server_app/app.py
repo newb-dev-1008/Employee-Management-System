@@ -6,6 +6,14 @@ import os
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), r'Scripts'))
 from netSystem import FaceRecognitionSystem
 
+# Check if the current system has dlib support.
+# If it does, use dlib; else use general OpenCV techniques.
+dlib_installed = True
+try:
+    import dlib
+except ImportError:
+    dlib_installed = False
+
 PHOTO_PATH = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
@@ -47,8 +55,3 @@ def recognizerListener():
 if (__name__ == "__main__"):
     app.run(debug = True) # [Was valid for running a test server with Flask]
     # serve(app, host = '0.0.0.0', port = 5000)
-
-'''
-def create_app():
-    return app
-'''
