@@ -1,4 +1,6 @@
 /.vscode
 /backend_support/Embeddings and labels
 /backend_support/Recognizer
+/backend_support/Scripts/__pycache__
+/server_app/__pycache__
 /Datasets

@@ -8,6 +8,7 @@ try:
     import dlib
 except ImportError:
     dlib_installed = False
+    print("dlib Package not found - implementing OpenCV approach.\n")
 
 # -------------------------------- Script to train the recognizer --------------------------------
 dataPath = os.path.join(FaceRecognitionSystem.mainDirName, "Datasets")

@@ -1,9 +1,9 @@
 from flask import Flask, request
 from waitress import serve
-import sys
 import os
+import sys
+sys.path.insert(1, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), r'backend_support\Scripts'))
 
-sys.path.insert(1, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), r'Scripts'))
 from netSystem import FaceRecognitionSystem
 
 # Check if the current system has dlib support.

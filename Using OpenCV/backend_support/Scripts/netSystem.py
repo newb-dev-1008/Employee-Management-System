@@ -3,6 +3,7 @@
 
 # ---------------------------- Required Packages ----------------------------
 from imutils import paths
+from pathlib import Path
 import numpy as np
 import imutils
 import pickle
@@ -24,33 +25,27 @@ class FaceRecognitionSystem:
 
     mainDirName = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     datasetPathURL = os.path.join(mainDirName, "Datasets")
-    protoPath = os.path.join(mainDirName, r"backend_support\Models\Face Detection\deploy.prototxt")
-    modelPath = os.path.join(mainDirName, r"backend_support\Models\Face Detection\res10_300x300_ssd_iter_140000.caffemodel")
+    faceDetectionModelsFolder = os.path.join(mainDirName, r"backend_support\Models\Face Detection")
     embedderPath = os.path.join(mainDirName, r"backend_support\Models\Embedder\openface_nn4.small2.v1.t7")
     embeddingsFolder = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Individual Embeddings")
-    mainEmbeddingsPath = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Collective\embeddings.pickle")
-    savePathRecognizer = os.path.join(mainDirName, r"backend_support\Recognizer\recognizer.pickle") 
-    savePathLabels = os.path.join(mainDirName, r"backend_support\Recognizer\le.pickle")
+    mainEmbeddingsPath = os.path.join(mainDirName, r"backend_support\Embeddings and labels\Collective")
+    recognizerFolderPath = os.path.join(mainDirName, r"backend_support\Recognizer")
 
     def __init__(self, 
-        datasetPathURL = datasetPathURL, 
-        protoPath = protoPath, 
-        modelPath = modelPath, 
+        datasetPathURL = datasetPathURL,
+        faceDetectionModelsFolder = faceDetectionModelsFolder,
         embedderPath = embedderPath, 
         embeddingsFolder = embeddingsFolder, 
-        mainEmbeddingsPath = mainEmbeddingsPath, 
-        savePathRecognizer = savePathRecognizer, 
-        savePathLabels = savePathLabels,
+        mainEmbeddingsPath = mainEmbeddingsPath,
+        recognizerFolderPath = recognizerFolderPath,
         deleteDataset = True):
 
         self.datasetPathURL = datasetPathURL
-        self.protoPathFolder = protoPath
-        self.modelPathFolder = modelPath
+        self.faceDetectionModelsFolder = faceDetectionModelsFolder
         self.embedderPath = embedderPath
         self.embeddingsFolder = embeddingsFolder
         self.mainEmbeddingsPath = mainEmbeddingsPath
-        self.savePathRecognizer = savePathRecognizer
-        self.savePathLabels = savePathLabels
+        self.recognizerFolderPath = recognizerFolderPath
         self.deleteDataset = deleteDataset
 
     # --------------------------------------- Program to train an SVM recognizer ---------------------------------------
@@ -68,33 +63,41 @@ class FaceRecognitionSystem:
         names = os.listdir(self.datasetPathURL)
 
         # Initialize the face detector model
-        detector = cv2.dnn.readNetFromCaffe(self.protoPath, self.modelPath)
+        protoPath = os.path.sep.join([self.faceDetectionModelsFolder, 'deploy.prototxt'])
+        modelPath = os.path.sep.join([self.faceDetectionModelsFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
+        detector = cv2.dnn.readNetFromCaffe(os.path.abspath(protoPath), os.path.abspath(modelPath))
 
         # Face Recognizer CNN - responsible for conversion of an image to a 128-D representation
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
 
+        # Initializing arrays to store embeddings and corresponding names
+        mainEmbeddings = []
+        mainNames = []
+
+        # Path to pickle file containing all embeddings
+        mainEmbeddingsFile = self.mainEmbeddingsPath + "\\embeddings.pickle"
+
+        # If there are embeddings from a previous usage already present
+        # And you're just adding a new person to an already existent embeddings storage location
+        if ((os.path.exists(self.embeddingsFolder)) and (len(os.listdir(self.embeddingsFolder)) != 0)):
+            
+            # Load the embeddings of the earlier people into the lists
+            # To include them collectively in the new training process
+            data = pickle.loads(open(mainEmbeddingsFile, "rb").read())
+            mainNames = data["Names"]
+            mainEmbeddings = data["Embeddings"]
+
         # Generating 128-D representation embeddings for each person
         for name in names:
+            print("Creating embeddings for person: ", name)
             userDatasetFolder = self.datasetPathURL + "\\" + name
             imagePaths = list(paths.list_images(userDatasetFolder))
             embedsFolder = self.embeddingsFolder + "\\" + name
-            os.mkdir(embedsFolder)
+            Path(embedsFolder).mkdir(parents = True, exist_ok = True)
+            # os.mkdir(embedsFolder)
             embeddingsPath = embedsFolder + "\\embeddings.pickle"
 
             userEmbeddings = []
-            mainEmbeddings = []
-            mainNames = []
-            
-            # If there are embeddings from a previous usage already present
-            # And you're just adding a new person to an already existent embeddings storage location
-            if (len(os.listdir(self.embeddingsFolder)) != 0):
-                
-                # Load the embeddings of the earlier people into the lists
-                # To include them collectively in the new training process
-                data = pickle.loads(open(self.mainEmbeddingsPath, "rb").read())
-                mainNames = data["Names"]
-                mainEmbeddings = data["Embeddings"]
-
 
             for (i, imagePath) in enumerate(imagePaths):
                 name = imagePath.split(os.path.sep)[-2]
@@ -130,12 +133,6 @@ class FaceRecognitionSystem:
                         userEmbeddings.append(vec.flatten())
                         mainNames.append(name)
 
-            # Write the updated embeddings list (with previous people + newly added person) back to file
-            data = {"Embeddings" : mainEmbeddings, "Names" : mainNames}
-            f = open(self.mainEmbeddingsPath, "wb")
-            f.write(pickle.dumps(data))
-            f.close()
-
             # Create a new embeddings pickle file for the specific person and all their images
             # Not necessary, but good to have instead of storing entire datasets
             userEmbeddingsPath = embeddingsPath
@@ -147,25 +144,40 @@ class FaceRecognitionSystem:
             # As training is done, in the interest of space
             if (self.deleteDataset == True):
                 shutil.rmtree(userDatasetFolder)
+            
+        # Write the updated embeddings list (with previous people + newly added person) back to file
+        Path(self.mainEmbeddingsPath).mkdir(parents = True, exist_ok = True)
+        data = {"Embeddings" : mainEmbeddings, "Names" : mainNames}
+        f = open(mainEmbeddingsFile, "wb")
+        f.write(pickle.dumps(data))
+        f.close()
 
-        # Training the SVM on new labels and embeddings - only if the number of folders in embeddingsFolder is more than 2
-        # One folder for collective embeddings of all people, another for any person whose photos have been trained.
+        # One folder for collective embeddings of all people, another for storing individual embeddings of each person.
+        # Training the SVM on new labels and embeddings - only if the number of folders (people) in "Individual Embeddings" folder is more than 2
         if (len(os.listdir(self.embeddingsFolder)) >= 2):
-            data = pickle.loads(open(self.mainEmbeddingsPath, 'rb').read())
+            print("\n------------------------------------------------------")
+            print("-------- Training the SVM based on given data --------")
+            print("------------------------------------------------------\n")
+            data = pickle.loads(open(mainEmbeddingsFile, 'rb').read())
             le = LabelEncoder()
             labels = le.fit_transform(data['Names'])
 
             param_grid = {'C' : [0.001, 0.01, 0.1, 1, 10, 100], 'gamma' : [100, 10, 1, 0.1, 0.01, 0.001, 0.0001], 'kernel' : ['linear', 'rbf', 'poly']}
 
-            grid = GridSearchCV(SVC(probability = True), param_grid, scoring = "precision", refit = True, verbose = 3, n_jobs = -1)
+            # grid = GridSearchCV(SVC(probability = True), param_grid, scoring = "precision", refit = True, verbose = 3, n_jobs = -1)
+            grid = GridSearchCV(SVC(probability = True), param_grid, verbose = 2)
             grid.fit(data["Embeddings"], labels)
 
-            f = open(self.savePathRecognizer, "wb")
-            f.write(pickle.dumps(grid))
+            # Save the recognizer as the SVM with best hyperparameters for estimation
+            Path(self.recognizerFolderPath).mkdir(parents = True, exist_ok = True)
+            savePathRecognizer = self.recognizerFolderPath + "\\ " + "recognizer.pickle"
+            f = open(savePathRecognizer, "wb")
+            f.write(pickle.dumps(grid.best_estimator_))
             f.close()
 
             # Save the label encoder
-            f = open(self.savePathLabels, "wb")
+            savePathLabels = self.recognizerFolderPath + "\\ " + "le.pickle"
+            f = open(savePathLabels, "wb")
             f.write(pickle.dumps(le))
             f.close()
 
@@ -176,14 +188,19 @@ class FaceRecognitionSystem:
     def recognizePerson(self, imageURL):
 
         # Initialize face detector
-        detector = cv2.dnn.readNetFromCaffe(self.protoPath, self.modelPath)
+        protoPath = os.path.sep.join([self.faceDetectionModelsFolder, 'deploy.prototxt'])
+        modelPath = os.path.sep.join([self.faceDetectionModelsFolder, 'res10_300x300_ssd_iter_140000.caffemodel'])
+        detector = cv2.dnn.readNetFromCaffe(os.path.abspath(protoPath), os.path.abspath(modelPath))
 
         # Load our serialized face embedding model
         embedder = cv2.dnn.readNetFromTorch(self.embedderPath)
 
         # Load the SVM Model and LabelEncoder
-        recognizer = pickle.loads(open(self.savePathRecognizer, "rb").read())
-        le = pickle.loads(open(self.savePathLabels, "rb").read())
+        savePathRecognizer = self.recognizerFolderPath + "\\ " + "recognizer.pickle"
+        recognizer = pickle.loads(open(savePathRecognizer, "rb").read())
+
+        savePathLabels = self.recognizerFolderPath + "\\ " + "le.pickle"
+        le = pickle.loads(open(savePathLabels, "rb").read())
 
         frame = cv2.imread(imageURL)
         frame = imutils.resize(frame, width = 600)
